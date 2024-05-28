@@ -1,0 +1,152 @@
+/* Import Google font - Poppins */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: 'Poppins', sans-serif;
+}
+
+body {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	overflow: hidden;
+}
+
+.bg {
+	background-color: #131516;
+}
+
+.container {
+	display: flex;
+	width: 100%;
+	gap: 10px;
+	padding: 10px;
+}
+
+section {
+	background-color: rgba(37, 37, 37, 0.65);
+	-webkit-backdrop-filter: blur(35px) contrast(200%);
+	backdrop-filter: blur(35px) contrast(200%);
+	border: 0.5px solid #f1f1f12a;
+	color: white;
+	box-shadow: 0px 0px 7.5px rgb(0, 0, 0);
+	border-radius: 7px;
+}
+
+.tools-board {
+	width: 210px;
+	padding: 15px 22px 0;
+}
+
+.tools-board .row {
+	margin-bottom: 20px;
+}
+
+.row .options {
+	list-style: none;
+	margin: 10px 0 0 5px;
+}
+
+.row .options .option {
+	display: flex;
+	cursor: pointer;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.option:is(:hover, .active) img {
+	filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
+}
+
+.option :where(span, label) {
+	color: #aaa;
+	cursor: pointer;
+	padding-left: 10px;
+}
+
+.option:is(:hover, .active) :where(span, label) {
+	color: #ccc;
+}
+
+.option #fill-color {
+	cursor: pointer;
+	height: 14px;
+	width: 14px;
+}
+
+#fill-color:checked~label {
+	color: #ccc;
+}
+
+.option #size-slider {
+	width: 100%;
+	height: 5px;
+	margin-top: 10px;
+}
+
+.options #pencil {
+	color: rgb(75, 75, 75);
+}
+
+.option #color-picker {
+	margin-top: -5px;
+	margin-left: 2px;
+	height: 25px;
+	width: 50px;
+	color: #000000;
+	cursor: pointer;
+}
+
+.buttons button {
+	width: 100%;
+	color: #fff;
+	border: none;
+	outline: none;
+	padding: 11px 0;
+	font-size: 0.9rem;
+	margin-bottom: 13px;
+	background: none;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.buttons .clear-canvas {
+	color: #6C757D;
+	border: 1px solid #6C757D;
+	transition: all 0.3s ease;
+}
+
+.clear-canvas:hover {
+	color: rgb(75, 75, 75);
+	font-weight: bold;
+	background: #ccc;
+}
+
+.buttons .save-img {
+	background-color: rgba(92, 92, 92, 0.25);
+	border-radius: 5px;
+	box-shadow: 0px -0.5px 0.5px rgba(95, 95, 95, 0.5);
+}
+
+.buttons .undo,
+.buttons .redo {
+	background-color: rgba(92, 92, 92, 0.25);
+	border-radius: 5px;
+	box-shadow: 0px -0.5px 0.5px rgba(95, 95, 95, 0.5);
+}
+
+.drawing-board {
+	flex: 1;
+	overflow: hidden;
+}
+
+.drawing-board canvas {
+	width: 100%;
+	height: 100%;
+	padding: 5px;
+	border-radius: 12px;
+}
