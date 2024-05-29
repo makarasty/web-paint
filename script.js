@@ -1,14 +1,3 @@
-const canvas = /** @type {HTMLCanvasElement} */(document.querySelector("canvas"))
-const fillColor = /**@type {HTMLInputElement}*/(document.querySelector("#fill-color"))
-const sizeSlider = /**@type {HTMLInputElement}*/(document.querySelector("#size-slider"))
-const colorPicker = /**@type {HTMLInputElement}*/(document.querySelector("#color-picker"))
-const clearCanvas = /**@type {HTMLButtonElement}*/(document.querySelector(".clear-canvas"))
-const saveImg = /**@type {HTMLButtonElement}*/(document.querySelector(".save-img"))
-const undoBtn = /**@type {HTMLButtonElement}*/(document.querySelector(".undo"))
-const redoBtn = /**@type {HTMLButtonElement}*/(document.querySelector(".redo"))
-
-const ctx = /** @type {CanvasRenderingContext2D} */(canvas.getContext("2d"))
-
 /** @typedef {(event: MouseEvent) => any} CoolToolFunction */
 
 class CoolTool {
@@ -17,25 +6,13 @@ class CoolTool {
 	 * @param {CoolToolFunction} func
 	 */
 	constructor(name, func) {
-
-		/**
-		 * @type {name}
-		 */
-		this.name = name
-
-		/**
-		 * @type {func}
-		 */
-		this.func = func
+		this.name = name;
+		this.func = func;
 	}
 }
 
 class CoolToolsManager {
-
 	constructor() {
-		/**
-		 * @type {Map<string, CoolTool>}
-		 */
 		this.tools = new Map();
 	}
 
@@ -47,261 +24,331 @@ class CoolToolsManager {
 		this.tools.set(name, new CoolTool(name, func));
 	}
 
-	getTools() {
-		return this.tools;
+	/**
+	 * @param {string} name
+	 */
+	getTool(name) {
+		return this.tools.get(name);
 	}
 }
 
-const toolsManager = new CoolToolsManager();
+class CanvasManager {
+	/**
+	 * @param {HTMLCanvasElement} canvas
+	 */
+	constructor(canvas) {
+		/**
+		 * @type {canvas}
+		 */
+		this.canvas = canvas;
 
-/**
- * @type {number}
- */
-let prevMouseX
+		this.ctx = /**@type {CanvasRenderingContext2D}*/(canvas.getContext("2d"))
 
-/**
- * @type {number}
- */
-let prevMouseY
+		/**
+		 * @type {boolean}
+		 */
+		this.isDrawing = false;
 
-/**
- * @type {ImageData}
- */
-let snapshot
+		/**
+		 * @type {number}
+		 */
+		this.brushWidth = 5;
 
-let isDrawing = false
-let brushWidth = 5
-let selectedTool = "brush"
-let selectedColor = "#000000"
+		/**
+		 * @type {string}
+		 */
+		this.selectedTool = "brush";
 
-colorPicker.value = selectedColor
-sizeSlider.value = selectedColor
+		/**
+		 * @type {string}
+		 */
+		this.selectedColor = "#000000";
 
-/**
- * @type {ImageData[]}
- */
-let history = []
-let historyStep = -1
+		/**
+		 * @type {ImageData[]}
+		 */
+		this.history = [];
 
-// Functions
+		/**
+		 * @type {number}
+		 */
+		this.historyStep = -1;
 
-function setCanvasBackground() {
-	ctx.fillStyle = "#fff";
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = selectedColor;
-}
+		/**
+		 * @type {number}
+		 */
+		this.prevMouseX = 0;
 
-function addHistory() {
-	history = history.slice(0, historyStep + 1);
-	history.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-	historyStep++;
-}
+		/**
+		 * @type {number}
+		 */
+		this.prevMouseY = 0;
 
-/**
- * @param {MouseEvent} e
- */
-function startDraw(e) {
-	isDrawing = true;
-	prevMouseX = e.offsetX;
-	prevMouseY = e.offsetY;
-	ctx.beginPath();
-	ctx.lineWidth = brushWidth;
-	ctx.strokeStyle = selectedColor;
-	ctx.fillStyle = selectedColor;
-	snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
+		/**
+		 * @type {ImageData}
+		 */
+		this.snapshot;
 
-function stopDraw() {
-	if (isDrawing) {
-		addHistory();
-		isDrawing = false;
+		/**
+		 * @type {CoolToolsManager}
+		 */
+		this.toolsManager = new CoolToolsManager();
+
+		this.init();
 	}
-}
 
-/**
- * @param {MouseEvent} e
- */
-function drawing(e) {
-	if (!isDrawing) return;
-	ctx.putImageData(snapshot, 0, 0);
+	init() {
+		this.canvas.width = this.canvas.offsetWidth;
+		this.canvas.height = this.canvas.offsetHeight;
+		this.setCanvasBackground();
+		this.addHistory();
 
-	const tools = toolsManager.getTools()
+		this.canvas.addEventListener("mousedown", (e) => this.startDraw(e));
+		this.canvas.addEventListener("mousemove", (e) => this.drawing(e));
+		this.canvas.addEventListener("mouseup", () => this.stopDraw());
 
-	const thatTool = tools.get(selectedTool)
-	thatTool && thatTool.func(e)
-}
+		document.addEventListener("keydown", (e) => this.handleKeyDown(e));
+	}
 
-function loadTools() {
-	const toolButtons = /**@type {NodeListOf<HTMLElement>}*/(document.querySelectorAll(".tool"))
+	setCanvasBackground() {
+		this.ctx.fillStyle = "#fff";
+		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.fillStyle = this.selectedColor;
+	}
 
-	toolButtons.forEach(btn => {
-		btn.addEventListener("click", () => {
-			document.querySelector(".options .active")?.classList.remove("active");
-			btn.classList.add("active");
-			selectedTool = btn.id;
-		});
-	});
-}
+	addHistory() {
+		this.history = this.history.slice(0, this.historyStep + 1);
+		this.history.push(this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height));
+		this.historyStep++;
+	}
 
-// Tools
-
-toolsManager.addTool("eraser", (e) => {
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
-
-	ctx.strokeStyle = "#fff";
-	ctx.lineTo(e.offsetX, e.offsetY);
-	ctx.stroke();
-})
-
-toolsManager.addTool("line", (e) => {
-	let shiftPressed = e.shiftKey;
-	let newX = e.offsetX;
-	let newY = e.offsetY;
-
-	if (shiftPressed) {
-		let deltaX = newX - prevMouseX;
-		let deltaY = newY - prevMouseY;
-
-		if (Math.abs(deltaX) > Math.abs(deltaY)) {
-			newY = prevMouseY;
-		} else {
-			newX = prevMouseX;
+	/**
+	 * @param {KeyboardEvent} e
+	 */
+	handleKeyDown(e) {
+		if (e.key === "z") {
+			e.preventDefault();
+			this.undo();
+		} else if (e.key === "u") {
+			e.preventDefault();
+			this.redo();
 		}
 	}
 
-	ctx.beginPath();
-	ctx.moveTo(prevMouseX, prevMouseY);
-	ctx.lineTo(newX, newY);
-	ctx.stroke();
-})
-
-toolsManager.addTool("brush", (e) => {
-	ctx.lineCap = 'square';
-	ctx.lineJoin = 'bevel';
-
-	ctx.lineTo(e.offsetX, e.offsetY);
-	ctx.stroke();
-})
-
-toolsManager.addTool("rectangle", (e) => {
-	ctx.lineCap = "butt";
-	ctx.lineJoin = "miter";
-
-	if (!fillColor.checked) {
-		return ctx.strokeRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
-	}
-	ctx.fillRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);
-})
-
-toolsManager.addTool("circle", (e) => {
-	ctx.lineCap = "butt";
-	ctx.lineJoin = "miter";
-
-	ctx.beginPath();
-	let radius = Math.sqrt(Math.pow((prevMouseX - e.offsetX), 2) + Math.pow((prevMouseY - e.offsetY), 2));
-	ctx.arc(prevMouseX, prevMouseY, radius, 0, 2 * Math.PI);
-	fillColor.checked ? ctx.fill() : ctx.stroke();
-})
-
-toolsManager.addTool("triangle", (e) => {
-	ctx.lineCap = "butt";
-	ctx.lineJoin = "miter";
-
-	ctx.beginPath();
-	ctx.moveTo(prevMouseX, prevMouseY);
-	ctx.lineTo(e.offsetX, e.offsetY);
-	ctx.lineTo(prevMouseX * 2 - e.offsetX, e.offsetY);
-	ctx.closePath();
-	fillColor.checked ? ctx.fill() : ctx.stroke();
-})
-
-toolsManager.addTool("pencil", (e) => {
-	ctx.lineCap = 'round';
-	ctx.lineJoin = 'round';
-
-	ctx.lineTo(e.offsetX, e.offsetY);
-	ctx.stroke();
-})
-
-toolsManager.addTool("spray", (e) => {
-	ctx.lineCap = "round";
-	ctx.lineJoin = "miter";
-
-	let spraySize = 2;
-	let sprayRadius = brushWidth * 4
-
-	ctx.lineWidth = spraySize;
-
-	for (let index = 0; index < 5; index++) {
-		const sprayX = prevMouseX + Math.random() * sprayRadius - sprayRadius / 2;
-		const sprayY = prevMouseY + Math.random() * sprayRadius - sprayRadius / 2;
-
-		ctx.moveTo(sprayX, sprayY);
-		ctx.arcTo(sprayX, sprayY, spraySize, 0, 2 * Math.PI);
+	undo() {
+		if (this.historyStep > 0) {
+			this.historyStep--;
+			this.ctx.putImageData(this.history[this.historyStep], 0, 0);
+		}
 	}
 
-	ctx.fillStyle = selectedColor;
-	ctx.stroke();
-
-	prevMouseX = e.offsetX
-	prevMouseY = e.offsetY
-})
-
-// Events
-
-document.addEventListener("keydown", (e) => {
-	if (e.key === "z") {
-		e.preventDefault();
-		undoBtn.click();
-	} else if (e.key === "u") {
-		e.preventDefault();
-		redoBtn.click();
+	redo() {
+		if (this.historyStep < this.history.length - 1) {
+			this.historyStep++;
+			this.ctx.putImageData(this.history[this.historyStep], 0, 0);
+		}
 	}
-});
+
+	/**
+	 * @param {MouseEvent} e
+	 */
+	startDraw(e) {
+		this.isDrawing = true;
+		this.prevMouseX = e.offsetX;
+		this.prevMouseY = e.offsetY;
+		this.ctx.beginPath();
+		this.ctx.lineWidth = this.brushWidth;
+		this.ctx.strokeStyle = this.selectedColor;
+		this.ctx.fillStyle = this.selectedColor;
+		this.snapshot = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+	}
+
+	stopDraw() {
+		if (this.isDrawing) {
+			this.addHistory();
+			this.isDrawing = false;
+		}
+	}
+
+	/**
+	 * @param {MouseEvent} e
+	 */
+	drawing(e) {
+		if (!this.isDrawing) return;
+		this.ctx.putImageData(this.snapshot, 0, 0);
+
+		const tool = this.toolsManager.getTool(this.selectedTool);
+		if (tool) {
+			tool.func(e);
+		}
+	}
+}
+
+class UIManager {
+	/**
+	 * @param {CanvasManager} canvasManager
+	 */
+	constructor(canvasManager) {
+		/**
+		 * @type {CanvasManager}
+		 */
+		this.canvasManager = canvasManager;
+
+		this.fillColor = /**@type {HTMLInputElement}*/(document.querySelector("#fill-color"))
+		this.sizeSlider = /**@type {HTMLInputElement}*/(document.querySelector("#size-slider"))
+		this.colorPicker = /**@type {HTMLInputElement}*/(document.querySelector("#color-picker"))
+		this.clearCanvas = /**@type {HTMLButtonElement}*/(document.querySelector(".clear-canvas"))
+		this.saveImg = /**@type {HTMLButtonElement}*/(document.querySelector(".save-img"))
+		this.undoBtn = /**@type {HTMLButtonElement}*/(document.querySelector(".undo"))
+		this.redoBtn = /**@type {HTMLButtonElement}*/(document.querySelector(".redo"))
+
+		this.colorPicker.value = '#000000'
+		this.sizeSlider.value = '5'
+
+		this.init();
+	}
+
+	init() {
+		this.sizeSlider.addEventListener("change", () => {
+			this.canvasManager.brushWidth = Number(this.sizeSlider.value);
+		});
+
+		this.colorPicker.addEventListener("change", () => {
+			this.canvasManager.selectedColor = this.colorPicker.value;
+		});
+
+		this.clearCanvas.addEventListener("click", () => {
+			this.canvasManager.ctx.clearRect(0, 0, this.canvasManager.canvas.width, this.canvasManager.canvas.height);
+			this.canvasManager.setCanvasBackground();
+			this.canvasManager.addHistory();
+		});
+
+		this.saveImg.addEventListener("click", () => {
+			const link = document.createElement("a");
+			link.download = `${Date.now()}.jpg`;
+			link.href = this.canvasManager.canvas.toDataURL();
+			link.click();
+		});
+
+		this.undoBtn.addEventListener("click", () => this.canvasManager.undo());
+		this.redoBtn.addEventListener("click", () => this.canvasManager.redo());
+
+		this.loadTools();
+	}
+
+	loadTools() {
+		const toolButtons = document.querySelectorAll(".tool");
+
+		toolButtons.forEach((btn) => {
+			btn.addEventListener("click", () => {
+				document.querySelector(".options .active")?.classList.remove("active");
+				btn.classList.add("active");
+				this.canvasManager.selectedTool = btn.id;
+			});
+		});
+	}
+}
 
 window.addEventListener("load", () => {
-	canvas.width = canvas.offsetWidth;
-	canvas.height = canvas.offsetHeight;
-	setCanvasBackground();
-	addHistory();
+	const canvas = /**@type {HTMLCanvasElement}*/(document.querySelector("canvas"))
+	const canvasMan = new CanvasManager(canvas);
+	const uiMan = new UIManager(canvasMan);
+
+	canvasMan.toolsManager.addTool("eraser", (e) => {
+		canvasMan.ctx.lineCap = "round";
+		canvasMan.ctx.lineJoin = "round";
+		canvasMan.ctx.strokeStyle = "#fff";
+		canvasMan.ctx.lineTo(e.offsetX, e.offsetY);
+		canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("line", (e) => {
+		let shiftPressed = e.shiftKey;
+		let newX = e.offsetX;
+		let newY = e.offsetY;
+
+		if (shiftPressed) {
+			let deltaX = newX - canvasMan.prevMouseX;
+			let deltaY = newY - canvasMan.prevMouseY;
+
+			if (Math.abs(deltaX) > Math.abs(deltaY)) {
+				newY = canvasMan.prevMouseY;
+			} else {
+				newX = canvasMan.prevMouseX;
+			}
+		}
+
+		canvasMan.ctx.beginPath();
+		canvasMan.ctx.moveTo(canvasMan.prevMouseX, canvasMan.prevMouseY);
+		canvasMan.ctx.lineTo(newX, newY);
+		canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("brush", (e) => {
+		canvasMan.ctx.lineCap = "square";
+		canvasMan.ctx.lineJoin = "bevel";
+		canvasMan.ctx.lineTo(e.offsetX, e.offsetY);
+		canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("rectangle", (e) => {
+		canvasMan.ctx.lineCap = "butt";
+		canvasMan.ctx.lineJoin = "miter";
+
+		if (!uiMan.fillColor.checked) {
+			return canvasMan.ctx.strokeRect(e.offsetX, e.offsetY, canvasMan.prevMouseX - e.offsetX, canvasMan.prevMouseY - e.offsetY);
+		}
+		canvasMan.ctx.fillRect(e.offsetX, e.offsetY, canvasMan.prevMouseX - e.offsetX, canvasMan.prevMouseY - e.offsetY);
+	});
+
+	canvasMan.toolsManager.addTool("circle", (e) => {
+		canvasMan.ctx.lineCap = "butt";
+		canvasMan.ctx.lineJoin = "miter";
+
+		canvasMan.ctx.beginPath();
+		let radius = Math.sqrt(Math.pow(canvasMan.prevMouseX - e.offsetX, 2) + Math.pow(canvasMan.prevMouseY - e.offsetY, 2));
+		canvasMan.ctx.arc(canvasMan.prevMouseX, canvasMan.prevMouseY, radius, 0, 2 * Math.PI);
+		uiMan.fillColor.checked ? canvasMan.ctx.fill() : canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("triangle", (e) => {
+		canvasMan.ctx.lineCap = "butt";
+		canvasMan.ctx.lineJoin = "miter";
+
+		canvasMan.ctx.beginPath();
+		canvasMan.ctx.moveTo(canvasMan.prevMouseX, canvasMan.prevMouseY);
+		canvasMan.ctx.lineTo(e.offsetX, e.offsetY);
+		canvasMan.ctx.lineTo(canvasMan.prevMouseX * 2 - e.offsetX, e.offsetY);
+		canvasMan.ctx.closePath();
+		uiMan.fillColor.checked ? canvasMan.ctx.fill() : canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("pencil", (e) => {
+		canvasMan.ctx.lineCap = "round";
+		canvasMan.ctx.lineJoin = "round";
+		canvasMan.ctx.lineTo(e.offsetX, e.offsetY);
+		canvasMan.ctx.stroke();
+	});
+
+	canvasMan.toolsManager.addTool("spray", (e) => {
+		canvasMan.ctx.lineCap = "round";
+		canvasMan.ctx.lineJoin = "miter";
+
+		let spraySize = 2;
+		let sprayRadius = canvasMan.brushWidth * 4;
+		canvasMan.ctx.lineWidth = spraySize;
+
+		for (let index = 0; index < 5; index++) {
+			const sprayX = canvasMan.prevMouseX + Math.random() * sprayRadius - sprayRadius / 2;
+			const sprayY = canvasMan.prevMouseY + Math.random() * sprayRadius - sprayRadius / 2;
+			canvasMan.ctx.moveTo(sprayX, sprayY);
+			canvasMan.ctx.arcTo(sprayX, sprayY, spraySize, 0, 2 * Math.PI);
+		}
+
+		canvasMan.ctx.fillStyle = canvasMan.selectedColor;
+		canvasMan.ctx.stroke();
+
+		canvasMan.prevMouseX = e.offsetX;
+		canvasMan.prevMouseY = e.offsetY;
+	});
 });
-
-sizeSlider.addEventListener("change", () => brushWidth = Number(sizeSlider.value));
-
-colorPicker.addEventListener("change", () => {
-	selectedColor = colorPicker.value;
-});
-
-clearCanvas.addEventListener("click", () => {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	setCanvasBackground();
-	addHistory();
-});
-
-saveImg.addEventListener("click", () => {
-	const link = document.createElement("a");
-	link.download = `${Date.now()}.jpg`;
-	link.href = canvas.toDataURL();
-	link.click();
-});
-
-undoBtn.addEventListener("click", () => {
-	if (historyStep > 0) {
-		historyStep--;
-		ctx.putImageData(history[historyStep], 0, 0);
-	}
-});
-
-redoBtn.addEventListener("click", () => {
-	if (historyStep < history.length - 1) {
-		historyStep++;
-		ctx.putImageData(history[historyStep], 0, 0);
-	}
-});
-
-canvas.addEventListener("mousedown", startDraw);
-canvas.addEventListener("mousemove", drawing);
-canvas.addEventListener("mouseup", stopDraw);
-
-loadTools()
