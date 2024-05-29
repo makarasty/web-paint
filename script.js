@@ -1,5 +1,7 @@
 /** @typedef {(event: MouseEvent) => any} CoolToolFunction */
 
+const softData =  /**@type {HTMLElement}*/(document.getElementById("softData"))
+
 class CoolTool {
 	/**
 	 * @param {string} name
@@ -42,7 +44,7 @@ class CanvasManager {
 		 */
 		this.canvas = canvas;
 
-		this.ctx = /**@type {CanvasRenderingContext2D}*/(canvas.getContext("2d"))
+		this.ctx = /**@type {CanvasRenderingContext2D}*/(canvas.getContext("2d"));
 
 		/**
 		 * @type {boolean}
@@ -90,6 +92,16 @@ class CanvasManager {
 		this.snapshot;
 
 		/**
+		 * @type {number}
+		 */
+		this.pmX = 0;
+
+		/**
+		 * @type {number}
+		 */
+		this.pmY = 0;
+
+		/**
 		 * @type {CoolToolsManager}
 		 */
 		this.toolsManager = new CoolToolsManager();
@@ -108,6 +120,8 @@ class CanvasManager {
 		this.canvas.addEventListener("mouseup", () => this.stopDraw());
 
 		document.addEventListener("keydown", (e) => this.handleKeyDown(e));
+
+		window.addEventListener('resize', () => this.resizeCanvas());
 	}
 
 	setCanvasBackground() {
@@ -174,13 +188,20 @@ class CanvasManager {
 	 * @param {MouseEvent} e
 	 */
 	drawing(e) {
-		if (!this.isDrawing) return;
-		this.ctx.putImageData(this.snapshot, 0, 0);
+		if (this.isDrawing) {
+			this.ctx.putImageData(this.snapshot, 0, 0);
 
-		const tool = this.toolsManager.getTool(this.selectedTool);
-		if (tool) {
-			tool.func(e);
+			const tool = this.toolsManager.getTool(this.selectedTool);
+			if (tool) {
+				tool.func(e);
+			}
 		}
+
+		softData.innerHTML = `X: ${e.offsetX}, Y: ${e.offsetY}`;
+	}
+
+	resizeCanvas() {
+		// xd
 	}
 }
 
@@ -205,10 +226,18 @@ class UIManager {
 		this.colorPicker.value = '#000000'
 		this.sizeSlider.value = '5'
 
+		this.undoBtn.disabled = true
+		this.redoBtn.disabled = true
+
 		this.init();
 	}
-
 	init() {
+		this.canvasManager.canvas.addEventListener("mouseup", () => {
+			if (this.canvasManager.historyStep > 0) {
+				this.undoBtn.disabled = false
+			}
+		});
+
 		this.sizeSlider.addEventListener("change", () => {
 			this.canvasManager.brushWidth = Number(this.sizeSlider.value);
 		});
@@ -230,8 +259,17 @@ class UIManager {
 			link.click();
 		});
 
-		this.undoBtn.addEventListener("click", () => this.canvasManager.undo());
-		this.redoBtn.addEventListener("click", () => this.canvasManager.redo());
+		this.undoBtn.addEventListener("click", () => {
+			this.undoBtn.disabled = this.canvasManager.historyStep === 1
+			this.redoBtn.disabled = false
+			this.canvasManager.undo()
+		});
+
+		this.redoBtn.addEventListener("click", () => {
+			this.redoBtn.disabled = !(this.canvasManager.historyStep + 1 < this.canvasManager.history.length - 1)
+			this.undoBtn.disabled = false
+			this.canvasManager.redo()
+		});
 
 		this.loadTools();
 	}
@@ -306,8 +344,9 @@ window.addEventListener("load", () => {
 		canvasMan.ctx.lineJoin = "miter";
 
 		canvasMan.ctx.beginPath();
-		let radius = Math.sqrt(Math.pow(canvasMan.prevMouseX - e.offsetX, 2) + Math.pow(canvasMan.prevMouseY - e.offsetY, 2));
-		canvasMan.ctx.arc(canvasMan.prevMouseX, canvasMan.prevMouseY, radius, 0, 2 * Math.PI);
+		let radiusX = Math.abs(canvasMan.prevMouseX - e.offsetX);
+		let radiusY = Math.abs(canvasMan.prevMouseY - e.offsetY);
+		canvasMan.ctx.ellipse(canvasMan.prevMouseX, canvasMan.prevMouseY, radiusX, radiusY, 0, 0, 2 * Math.PI);
 		uiMan.fillColor.checked ? canvasMan.ctx.fill() : canvasMan.ctx.stroke();
 	});
 
