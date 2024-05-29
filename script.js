@@ -344,9 +344,17 @@ window.addEventListener("load", () => {
 		canvasMan.ctx.lineJoin = "miter";
 
 		canvasMan.ctx.beginPath();
-		let radiusX = Math.abs(canvasMan.prevMouseX - e.offsetX);
-		let radiusY = Math.abs(canvasMan.prevMouseY - e.offsetY);
-		canvasMan.ctx.ellipse(canvasMan.prevMouseX, canvasMan.prevMouseY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+
+		if (e.shiftKey) {
+			canvasMan.ctx.beginPath();
+			let radius = Math.sqrt(Math.pow(canvasMan.prevMouseX - e.offsetX, 2) + Math.pow(canvasMan.prevMouseY - e.offsetY, 2));
+			canvasMan.ctx.arc(canvasMan.prevMouseX, canvasMan.prevMouseY, radius, 0, 2 * Math.PI);
+		} else {
+			let radiusX = Math.abs(canvasMan.prevMouseX - e.offsetX);
+			let radiusY = Math.abs(canvasMan.prevMouseY - e.offsetY);
+			canvasMan.ctx.ellipse(canvasMan.prevMouseX, canvasMan.prevMouseY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+		}
+
 		uiMan.fillColor.checked ? canvasMan.ctx.fill() : canvasMan.ctx.stroke();
 	});
 
